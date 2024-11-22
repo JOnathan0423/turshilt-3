@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Архимедийн зарчмаар нягт бодох</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      background-color: #eef2f3;
+    }
+    canvas {
+      margin-top: 20px;
+      border: 1px solid black;
+    }
+    input, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #output {
+      margin-top: 20px;
+      font-size: 18px;
+      background: white;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    input {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Архимедийн зарчмаар нягт бодох</h1>
+  <p>Нягт бодохын тулд утгуудыг оруулж, сайжруулсан симуляцийг үзнэ үү:</p>
+  
+  <!-- Input fields -->
+  <label for="massAir">Агаар дахь масс (M<sub>air</sub>) кг-ээр:</label>
+  <input type="number" id="massAir" placeholder="Жишээ нь: 0.5" step="0.001" min="0"><br>
+
+  <label for="massLiquid">Шингэнд илрэх масс (M<sub>liquid</sub>) кг-ээр:</label>
+  <input type="number" id="massLiquid" placeholder="Жишээ нь: 0.3" step="0.001" min="0"><br>
+
+  <label for="liquidDensity">Шингэний нягт (ρ<sub>liquid</sub>) кг/м³:</label>
+  <input type="number" id="liquidDensity" placeholder="Жишээ нь: 1000" step="1" min="0"><br>
+
+  <button onclick="calculateDensity()">Нягт бодох ба симуляц хийх</button>
+
+  <!-- Output results -->
+  <div id="output"></div>
+
+  <!-- Canvas for simulation -->
+  <canvas id="simulationCanvas" width="800" height="500"></canvas>
+
+  <script>
+    const canvas = document.getElementById('simulationCanvas');
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+    
+    let airWeightHeight = 20;
+    let liquidWeightHeight = 20;
+    let objectY = 310; // Initial Y position of the submerged object
+
+    /**
+     * Симуляцийг сайжруулсан дүрслэлтэйгээр зур
+     * @param {number} massAir - Агаар дахь массыг
+     * @param {number} massLiquid - Шингэнд илрэх массыг
+     */
+    function drawSimulation(massAir, massLiquid, objectYPosition) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Дүрслэлийн дэвсгэр өнгө
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, "#a1c4fd");
+      gradient.addColorStop(1, "#c2e9fb");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Тэгшитгэлийн тулгуур
+      ctx.fillStyle = 'gray';
+      ctx.fillRect(300, 100, 200, 10); // Тэгшитгэлийн жийргэвч
+
+      // Дэмжлэг
+      ctx.fillRect(390, 110, 20, 100); // Босоо дэмжлэг
+
+      // Жин ба утас
+      const airWeightHeightCurrent = Math.max(20, massAir * 50);
+      const liquidWeightHeightCurrent = Math.max(20, massLiquid * 50);
+
+      // Зүүн утас
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(320, 110);
+      ctx.lineTo(320, 110 + airWeightHeightCurrent);
+      ctx.stroke();
+
+      // Баруун утас
+      ctx.beginPath();
+      ctx.moveTo(480, 110);
+      ctx.lineTo(480, 110 + liquidWeightHeightCurrent);
+      ctx.stroke();
+
+      // Жингийн дүрслэл
+      ctx.fillStyle = 'brown';
+      ctx.fillRect(305, 110 + airWeightHeightCurrent, 30, 30);
+      ctx.fillStyle = 'brown';
+      ctx.fillRect(465, 110 + liquidWeightHeightCurrent, 30, 30);
+
+      // Шингэний сав
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(400, 250, 100, 150); // Шингэний сав
+      ctx.fillStyle = 'white';
+      ctx.fillText("Шингэн", 430, 420);
+
+      // Багцлагдсан объект
+      ctx.fillStyle = 'red';
+      ctx.beginPath();
+      ctx.arc(450, objectYPosition, 15, 0, Math.PI * 2); // Багцлагдсан объект
+      ctx.fill();
+      ctx.fillStyle = 'black';
+      ctx.fillText("Багцлагдсан объект", 430, 270);
+
+      // Жингийн нэр
+      ctx.fillStyle = 'black';
+      ctx.fillText(`Агаар дахь жин: ${massAir} кг`, 280, 90);
+      ctx.fillText(`Шингэнд илрэх жин: ${massLiquid} кг`, 450, 90);
+    }
+
+    /**
+     * Нягтыг бодож, үр дүнг харуулах
+     */
+    function calculateDensity() {
+      // Хэрэглэгчийн оруулсан утгууд
+      const massAir = parseFloat(document.getElementById('massAir').value);
+      const massLiquid = parseFloat(document.getElementById('massLiquid').value);
+      const liquidDensity = parseFloat(document.getElementById('liquidDensity').value);
+      const g = 9.8; // Гравитацийн хүч (м/с²)
+
+      // Орлуулах утгуудыг шалгах
+      if (isNaN(massAir) || isNaN(massLiquid) || isNaN(liquidDensity) ||
+          massAir <= 0 || massLiquid <= 0 || liquidDensity <= 0) {
+        document.getElementById('output').innerText = 'Бүх оролтыг эерэг утгаар оруулна уу.';
+        return;
+      }
+
+      // Давсны хүчийг бодох
+      const buoyantForce = (massAir - massLiquid) * g;
+
+      // Биеийн эзэлхүүнийг бодох
+      const volumeSolid = buoyantForce / (liquidDensity * g);
+
+      // Биеийн нягтыг бодох
+      const densitySolid = massAir / volumeSolid;
+
+      // Үр дүнг харуулах
+      document.getElementById('output').innerHTML = `
+        <p><strong>Үр дүн:</strong></p>
+        <p>Давсны хүч: ${buoyantForce.toFixed(2)} N</p>
+        <p>Биеийн эзэлхүүн: ${volumeSolid.toFixed(6)} м³</p>
+        <p>Биеийн нягт: ${densitySolid.toFixed(2)} кг/м³</p>
+      `;
+
+      // Симуляцийг шинэчлэх
+      cancelAnimationFrame(animationFrameId); // Өмнөх анимацийг цуцлах
+      animateSimulation(massAir, massLiquid);
+    }
+
+    // Симуляцийн анимэйшн хийх функц
+    function animateSimulation(massAir, massLiquid) {
+      const buoyantForce = (massAir - massLiquid) * 9.8;
+      const liquidHeight = buoyantForce / (parseFloat(document.getElementById('liquidDensity').value) * 9.8);
+
+      let objectPosition = 310; // Initial position
+
+      function animate() {
+        objectPosition = Math.max(150, objectPosition - liquidHeight * 2); // object position based on buoyant force
+        drawSimulation(massAir, massLiquid, objectPosition);
+        animationFrameId = requestAnimationFrame(animate);
+      }
+
+      animate(); // Start animation loop
+    }
+
+    // Эхлэлд симуляцийг шууд гаргах
+    drawSimulation(1, 1, 310);
+  </script>
+</body>
+</html>
